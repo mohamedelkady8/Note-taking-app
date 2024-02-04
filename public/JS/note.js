@@ -1,103 +1,183 @@
-// Function to generate the HTML for a note card
-function generateNoteCard(note) {
-  console.log('generateNoteCard')
-  let noteColor = note.color;
-  let mapColor = {
-    white: "lightgray",
-    blue: "lightblue",
-    red: "lightcoral",
-    green: "lightgreen",
-    orange: "lightsalmon"
-  }
-  noteColor = mapColor[noteColor];
-  console.log(note)
-  return `
-        <div class="col-md-4">
-          <div class="card mt-4" style="background-color: ${noteColor}">
-            <div class="card-header d-flex justify-content-between">
-            <div class="d-flex justify-content-around"> 
-              <button type="button" class="delete-btn btn btn-danger btn-sm mr-2" data-note-id=${note._id}>X</button>
-              <button type="button" class="eNote btn btn-warning btn-sm mr-2">E</button>
-            </div>
-              <h5 class="mb-0">${note.title}</h5>
-            </div>
-            <div class="card-body">
-              <p>${note.text}</p>
-            </div>
-          </div>
-        </div>
-      `;
-}
+(function () {
+  "use strict";
 
-// read notes from the server
-window.onload = function () {
-  fetch('/notes')
-    .then(response => response.json())
-    .then(notes => {
-      const notesContainer = document.getElementById('noteContainer');
-      notes.message.forEach(note => {
-        const noteCard = generateNoteCard(note);
-        notesContainer.innerHTML += noteCard;
-      });
-    })
-    .catch(error => console.error('Error:', error));
-};
+  var app = {
+    noteEditor: document.getElementById("note-editor"),
+    noteEditorTitle: document.getElementById("note-editor-title"),
+    title: document.getElementById("title"),
+    message: document.getElementById("message"),
+    color: document.getElementById("color"),
+    addButton: document.getElementById("add-btn"),
+    errorDisplay: document.getElementById("error"),
+    notesSection: document.getElementById("notes-section"),
+    notes: document.getElementById("notes"),
+    editMode: false,
 
-// Function to add a new note
-function addNote(note) {
-  fetch('/notes', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+    init: function () {
+      app.title.addEventListener("focus", app.clearError);
+      app.message.addEventListener("focus", app.clearError);
+
+      app.title.addEventListener("keypress", app.detectInput);
+      app.message.addEventListener("keypress", app.detectInput);
+
+      app.addButton.addEventListener("click", app.createNote);
     },
-    body: JSON.stringify(note),
-  })
-    .then(response => {
-      if (response.ok) { // Check if response went through
-        location.reload(); // Reload the page to update the notes
+    detectInput: function () {
+      if (!app.title.value || !app.message.value) {
+        return;
       } else {
-        console.error('Error:', response.statusText);
+        app.addButton.innerText = "Create Note";
       }
-    })
-    .catch(error => console.error('Error:', error));
-}
+    },
+    clearError: function () {
+      app.title.classList.remove("is-empty");
+      app.message.classList.remove("is-empty");
+      app.errorDisplay.innerHTML = "";
+    },
+    createNote: function () {
+      if (!app.title.value || !app.message.value) {
+        if (!app.title.value) {
+          app.title.classList.add("is-empty");
+        }
+        if (!app.message.value) {
+          app.message.classList.add("is-empty");
+        }
+        app.errorDisplay.innerHTML = "<span>*Values required</span>";
+        return;
+      } else {
+        var note = new Object();
 
-// Event listener for form submission
-document.getElementById('addNoteForm').addEventListener('submit', function (event) {
-  event.preventDefault();
+        note.title = app.title.value;
+        note.message = app.message.value;
+        note.color = app.color.value;
 
-  const note = {
-    title: document.getElementById('note-title').value,
-    text: document.getElementById('note-text').value,
-    color: document.getElementById('note-color').value,
+        app.addNote(note);
+      }
+    },
+    addNote: function (note) {
+      var li = document.createElement("li"),
+        deleteBtn = document.createElement("span"),
+        editBtn = document.createElement("span"),
+        title = document.createElement("span"),
+        message = document.createElement("span"),
+        footer = document.createElement("footer");
+
+      deleteBtn.className = "delete";
+      deleteBtn.innerHTML = '<i class="fa fa-trash-o"></i> delete';
+      deleteBtn.addEventListener("click", app.deleteNote);
+
+      title.className = "note-title";
+      title.innerHTML = note.title;
+
+      message.className = "note-message";
+      message.innerHTML = note.message;
+
+      editBtn.className = "edit";
+      editBtn.innerHTML = '<i class="fa fa-pencil-square-o"></i> Edit';
+      editBtn.addEventListener("click", app.editNote);
+
+      footer.appendChild(editBtn);
+      footer.appendChild(deleteBtn);
+
+      li.className = note.color;
+
+      li.appendChild(title);
+      li.appendChild(message);
+      li.appendChild(footer);
+
+      app.notes.prepend(li);
+
+      app.title.value = "";
+      app.message.value = "";
+
+      if (!app.editMode) {
+        app.addButton.innerText = "Create Note";
+      } else {
+        setTimeout(function () {
+          app.addButton.innerText = "Create Note";
+        }, 200);
+      }
+    },
+    editNote: function () {
+      var li,
+        title,
+        message,
+        color,
+        note = new Object();
+
+      li = this.parentNode.parentNode;
+
+      for (var i = 0; i < li.childNodes.length; i++) {
+        if (li.childNodes[i].className === "note-title") {
+          title = li.childNodes[i].innerText;
+        }
+      }
+
+      for (var i = 0; i < li.childNodes.length; i++) {
+        if (li.childNodes[i].className === "note-message") {
+          message = li.childNodes[i].innerText;
+        }
+      }
+
+      color = li.getAttribute("class");
+
+      note.title = title;
+      note.message = message;
+      note.color = color;
+
+      app.openNote(note);
+
+      setTimeout(function () {
+        li.remove();
+      }, 200);
+    },
+    openNote: function (note) {
+      if (!app.editMode) {
+        app.noteEditor.classList.add("hide");
+        app.notesSection.classList.add("hide");
+
+        setTimeout(function () {
+          app.noteEditorTitle.innerText = "Edit Note";
+
+          app.addButton.innerText = "Done";
+          app.addButton.removeEventListener("click", app.createNote);
+          app.addButton.addEventListener("click", app.saveNote);
+
+          app.title.value = note.title;
+          app.message.value = note.message;
+          app.color.value = note.color;
+
+          app.noteEditor.classList.remove("hide");
+          app.editMode = true;
+        }, 200);
+      } else {
+        return;
+      }
+    },
+    saveNote: function () {
+      app.createNote();
+
+      app.noteEditor.classList.add("hide");
+      app.notesSection.classList.add("hide");
+
+      setTimeout(function () {
+        app.noteEditorTitle.innerText = "Create Note";
+
+        app.addButton.removeEventListener("click", app.saveNote);
+        app.addButton.addEventListener("click", app.createNote);
+
+        app.title.value = "";
+        app.message.value = "";
+
+        app.notesSection.classList.remove("hide");
+        app.noteEditor.classList.remove("hide");
+        app.editMode = false;
+      }, 200);
+    },
+    deleteNote: function () {
+      this.parentNode.parentNode.remove();
+    },
   };
 
-  addNote(note);
-});
-
-// Function to delete a note
-function deleteNote(noteId) {
-  console.log('deleteNote')
-  console.log(noteId)
-  fetch(`/notes/${noteId}`, {
-    method: 'DELETE',
-  })
-    .then(response => {
-      if (response.ok) { // Check if response went through
-        location.reload(); // Reload the page to update the notes
-      } else {
-        console.error('Error:', response.statusText);
-      }
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Event listener for delete button
-document.body.addEventListener('click', function (event) {
-  if (event.target.matches('.delete-btn')) {
-    const noteId = event.target.getAttribute('data-note-id');
-    console.log('delete-btn')
-    console.log(event.target)
-    deleteNote(noteId);
-  }
-});
+  app.init();
+})();
