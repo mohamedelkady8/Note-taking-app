@@ -19,7 +19,7 @@ const userSchema = new Schema({
         required: [true, "Password is required"],
         minlength: [8, "Password must be at least 8 characters long"],
         trim: true
-    },
+    }
 }, { timestamps: true }); 
 
 const User = mongoose.model("User", userSchema);
